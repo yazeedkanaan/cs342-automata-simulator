@@ -1,15 +1,36 @@
+"""
+generator.py
+-------------
+Generates all accepted strings up to max_length.
+Supports DFA & NFA.
+"""
+
+from .simulator import Simulator
+
 class LanguageGenerator:
     def generate(self, automaton, max_length, alphabet):
-        simulator = __import__("automata.simulator", fromlist=["Simulator"]).Simulator()
-        results = []
+        """
+        Generates all accepted strings up to a given length.
+        """
+        simulator = Simulator()
+        results = set()
 
-        def dfs(current, string):
-            if len(string) > max_length:
+        def dfs(current_string):
+            if len(current_string) > max_length:
                 return
-            if simulator.simulate_dfa(automaton, string) or simulator.simulate_nfa(automaton, string):
-                results.append(string)
-            for sym in alphabet:
-                dfs(current, string + sym)
 
-        dfs("", "")
-        return sorted(set(results))
+            # test the string
+            if automaton.is_dfa:
+                accepted = simulator.simulate_dfa(automaton, current_string)
+            else:
+                accepted = simulator.simulate_nfa(automaton, current_string)
+
+            if accepted:
+                results.add(current_string)
+
+            # expand
+            for sym in alphabet:
+                dfs(current_string + sym)
+
+        dfs("")
+        return sorted(results)
