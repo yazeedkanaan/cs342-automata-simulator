@@ -90,4 +90,97 @@ class AutomataGUI:
         desc = (
             "According to DFA constraints, an automaton can only have ONE start state, "
             "and MUST NOT have duplicate deterministic transitions for the same symbol from any single state.\n\n"
-            "Click the buttons below to see how the engine enforces these rules and rejects invalid designs dynamically
+            "Click the buttons below to see how the engine enforces these rules and rejects invalid designs dynamically."
+        )
+        tk.Label(lbl_dfa, text=desc, justify="left", wraplength=550, font=("Arial", 10), fg="#34495e").pack(pady=10)
+
+        tk.Button(
+            lbl_dfa, text="Test Constraint 1: Multiple Start States Error", font=("Arial", 10, "bold"),
+            bg="#e74c3c", fg="white", width=45, command=self.test_dfa_start_constraint
+        ).pack(pady=10)
+
+        tk.Button(
+            lbl_dfa, text="Test Constraint 2: Ambiguous/Duplicate Transition Error", font=("Arial", 10, "bold"),
+            bg="#e74c3c", fg="white", width=45, command=self.test_dfa_transition_constraint
+        ).pack(pady=10)
+
+        tk.Button(
+            lbl_dfa, text="Test Success: Construct & Run a Valid DFA", font=("Arial", 10, "bold"),
+            bg="#27ae60", fg="white", width=45, command=self.test_valid_dfa
+        ).pack(pady=10)
+
+        self.dfa_status = tk.Label(lbl_dfa, text="", font=("Arial", 11, "italic"), fg="#2c3e50")
+        self.dfa_status.pack(pady=15)
+
+    # ------------------------------------------------------------
+    def build_nfa(self):
+        regex = self.regex_entry.get().strip()
+        if not regex:
+            messagebox.showerror("Error", "Please enter a regular expression.")
+            return
+
+        try:
+            postfix = self.parser.to_postfix(regex)
+            self.nfa = self.thompson.construct(postfix)
+            messagebox.showinfo("Success", f"NFA built successfully via Thompson's Construction!\nPostfix Notation: {postfix}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Parsing Error: {str(e)}")
+
+    def test_string(self):
+        if self.nfa is None:
+            messagebox.showerror("Error", "Please build the NFA from a regular expression first!")
+            return
+
+        test_str = self.test_entry.get()
+        accepted = self.simulator.simulate_nfa(self.nfa, test_str)
+
+        if accepted:
+            self.result_label.config(text=f"✔ Accepted: '{test_str}' belongs to the language.", fg="#27ae60")
+        else:
+            self.result_label.config(text=f"✘ Rejected: '{test_str}' does not belong to the language.", fg="#c0392b")
+
+    # ------------------------------------------------------------
+    # Constraint Enforcement Testing Functions
+    # ------------------------------------------------------------
+    def test_dfa_start_constraint(self):
+        try:
+            dfa = Automaton(is_dfa=True)
+            dfa.add_state("Q0", is_start=True)
+            dfa.add_state("Q1", is_start=True) 
+        except ValueError as e:
+            self.dfa_status.config(text=f"Caught Enforced Exception:\n{str(e)}", fg="#c0392b")
+            messagebox.showinfo("Constraint Verified", f"Success! Engine blocked multiple start states:\n\n{str(e)}")
+
+    def test_dfa_transition_constraint(self):
+        try:
+            dfa = Automaton(is_dfa=True)
+            dfa.add_state("Q0", is_start=True)
+            dfa.add_state("Q1", is_accept=True)
+            dfa.add_transition("Q0", "Q1", "a")
+            dfa.add_transition("Q0", "Q1", "a")
+        except ValueError as e:
+            self.dfa_status.config(text=f"Caught Enforced Exception:\n{str(e)}", fg="#c0392b")
+            messagebox.showinfo("Constraint Verified", f"Success! Engine blocked ambiguous duplicate transition:\n\n{str(e)}")
+
+    def test_valid_dfa(self):
+        try:
+            dfa = Automaton(is_dfa=True)
+            dfa.add_state("Q0", is_start=True)
+            dfa.add_state("Q1", is_accept=True)
+            dfa.add_transition("Q0", "Q1", "a")
+            dfa.add_transition("Q1", "Q1", "a")
+            dfa.add_transition("Q1", "Q1", "b")
+            
+            res1 = self.simulator.simulate_dfa(dfa, "aab")
+            res2 = self.simulator.simulate_dfa(dfa, "bb")
+            
+            status_text = f"Valid DFA Constructed Successfully!\nSimulating over alphabet {{a, b}}:\n'aab' -> {'Accepted' if res1 else 'Rejected'}\n'bb' -> {'Accepted' if res2 else 'Rejected'}"
+            self.dfa_status.config(text=status_text, fg="#27ae60")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AutomataGUI(root)
+    root.mainloop()
